@@ -48,54 +48,54 @@ public function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP c
     {
         // pick a logic
     }
-	
+    
     if (PC.Role != ENetRole.ROLE_Authority)
     {
         PC.ClientMessage("CBot: controller doesn't have authority");
         return;
     }
-	
+    
     BWI = BioWorldInfo(PC.WorldInfo);
     if (BWI == None)
     {
         PC.ClientMessage("CBot: no world");
         return;
     }
-	
+    
     if (SFXPRIMP(PC.PlayerReplicationInfo) == None)
     {
         PC.ClientMessage("CBot: no mp PlayerReplicationInfo");
         return;
     }
-	
+    
     PlayerPawn = SFXPawn(PC.Pawn);
     if (PlayerPawn == None)
     {
         PC.ClientMessage("CBot: no Player pawn");
         return;
     }
-	
-	// allow spawning inside of PC for now
+    
+    // allow spawning inside of PC for now
     PlayerPawn.bBlockActors = FALSE;
-	
-	// Spawn AI Controller
-	
+    
+    // Spawn AI Controller
+    
     AIControllerClass = Class<AIController>(Class'SFXEngine'.static.GetSeekFreeObject(cheatMgr.AutoBotAIControllerName, Class'Class'));
     if (AIControllerClass == None)
     {
         PC.ClientMessage("CBot: failed to fetch AIControllerClass");
         return;
     }
-	
+    
     AI = SFXAI_Core(Class'Engine'.static.GetCurrentWorldInfo().Spawn(AIControllerClass, , , PC.location, PC.Rotation));
     if (AI == None)
     {
         PC.ClientMessage("CBot: failed to create AI controller");
         return;
     }
-	
-	// Spawn AI Pawn
-	
+    
+    // Spawn AI Pawn
+    
     agentPrimp = SFXPRIMP(AI.PlayerReplicationInfo);
     agentPrimp.SetCharacterKit(Name(agentKit));
     agentArchetype = SFXPawn_PlayerMP(
@@ -110,25 +110,25 @@ public function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP c
     {
         AIPawn.Kit = agentPrimp.GetCharacterKit();
     }
-	
+    
     AI.Possess(AIPawn, FALSE);
     AIPawn.SetLocation(PlayerPawn.location, );
     AIPawn.SetRotation(PC.Rotation);
     AI.SetTeam(0);
-	
+    
     PC.bGodMode = TRUE;
     AI.bGodMode = TRUE;
-	
+    
     PlayerSquad = PlayerPawn.Squad;
     PlayerSquad.AddMember(AIPawn, FALSE);
-	
+    
     AIPawn.m_fPowerUsePercent = BWI.m_fAutoBotAttackPowerPercent;
-	
-	// level up
+    
+    // level up
     SFXPawn_Player(AIPawn).AutoLevelUpInfo = SFXPawn_Player(AIPawn).PlayerClass.default.AutoLevelUpInfo;
     SFXPawn_Player(PlayerPawn).AutoLevelUpInfo = SFXPawn_Player(PlayerPawn).PlayerClass.default.AutoLevelUpInfo;
     cheatMgr.MPBotsLevelUp(AIPawn, 20);
-	
+    
     BWI.SetAutoBotsEnabled(TRUE);
 }
 
