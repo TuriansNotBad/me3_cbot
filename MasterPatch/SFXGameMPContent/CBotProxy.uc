@@ -11,29 +11,21 @@ var array<ItemLookup> _wpnLookup;
 
 // Functions -----------------------------------------------------------
 
-function string GetItemByLookup(string itemId, out array<ItemLookup> items)
+private function string GetItemByLookup(string itemId, out array<ItemLookup> items)
 {
     local ItemLookup itemInfo;
     
     if (items.Length == 0)
-    {
         return "";
-    }
 
     if (itemId != "")
-    {
         foreach items(itemInfo)
-        {
             if (InStr(itemInfo.sId, itemId, false, true) == 0)
-            {
                 return itemInfo.sReal;
-            }
-        }
-    }
     return "";
 }
 
-function string GetKitByLookup(string kitId)
+private function string GetKitByLookup(string kitId)
 {
     local string kit;
 
@@ -46,7 +38,7 @@ function string GetKitByLookup(string kitId)
     return kit;
 }
 
-function string GetWeaponByLookup(string wpnId)
+private function string GetWeaponByLookup(string wpnId)
 {
     local string wpn;
 
@@ -59,7 +51,26 @@ function string GetWeaponByLookup(string wpnId)
     return wpn;
 }
 
-public function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr, optional string kitId, optional string wpn, optional int logicId)
+private function ToggleDebugForAgent(BioPlayerController PC, coerce int idx)
+{
+    local SFXAI_CBotTurret agent;
+    local int i;
+
+    if (idx <= 0)
+        return;
+
+    idx--;
+    foreach PC.WorldInfo.AllControllers(Class'SFXAI_CBotTurret', agent)
+    {
+        if (i == idx)
+            agent.CBotDebugDrawInit();
+        else
+            agent.CBotDebugDrawRemove();
+        ++i;
+    }
+}
+
+function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr, optional string kitId, optional string wpn, optional int logicId)
 {
     local SFXPawn PlayerPawn;
     local SFXPawn_PlayerMP AIPawn;
@@ -72,6 +83,12 @@ public function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP c
     local string agentKit;
     local string agentWpn;
     
+    if (kitId == "dbg")
+    {
+        ToggleDebugForAgent(PC, wpn);
+        return;
+    }
+
     agentKit = GetKitByLookup(kitId);
     agentWpn = GetWeaponByLookup(wpn);
     if (agentKit == "" || agentWpn == "")

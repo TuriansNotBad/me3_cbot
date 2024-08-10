@@ -1,13 +1,17 @@
 Class SFXAICmd_Base_CBotTurret extends SFXAICommand_Base_Combat within SFXAI_CBotTurret;
 
-public function bool ShouldAttack()
+function bool ShouldAttack()
 {
     return TRUE;
 }
-public function Pushed()
+
+function Pushed()
 {
     Outer.m_createdPt = Outer.MyBP.location;
+    Outer.MyBP.SightRadius = 9000.0;
 }
+
+
 
 auto state Combat extends InCombat 
 {
@@ -22,18 +26,15 @@ Begin:
     }
 
     // find target
-    if (Outer.FireTarget == None)
-    {
-        Outer.SelectTarget();
-    }
-
+    Outer.SelectTargetPlayer();
+    Outer.UpdateFocus();
     // and always attack
-    if (Outer.FireTarget != None && ShouldAttack())
-    {
-        Outer.Attack();
-    }
+    if (Outer.m_agentTarget != None && ShouldAttack())
+        Outer.StartFiring();
+    else
+        Outer.StopFiring();
 
-    Outer.Sleep(0.100000001);
+    Outer.Sleep(0.1);
     goto 'Begin';
     stop;
 };
