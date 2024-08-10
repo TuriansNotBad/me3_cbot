@@ -2,7 +2,7 @@ Class SFXAICmd_Base_CBotTurret extends SFXAICommand_Base_Combat within SFXAI_CBo
 
 function bool ShouldAttack()
 {
-    return TRUE;
+    return true;
 }
 
 function Pushed()
@@ -11,23 +11,32 @@ function Pushed()
     Outer.MyBP.SightRadius = 9000.0;
 }
 
-
-
 auto state Combat extends InCombat 
 {
     
 Begin:
     Outer.FindDrivablePawn();
 
-     // stay in my spawn
+    // custom actions can set this and never remove
+    if (Outer.MyBP.bLockDesiredRotation)
+        Outer.MyBP.LockDesiredRotation(false);
+
+    // stay in my spawn
     if (VSize(Outer.MyBP.location - Outer.m_createdPt) > 50.0)
     {
         Class'SFXAICmd_MoveToLocation'.static.MoveToLocation(Outer, Outer.m_createdPt, 0.0, true, true);
+    }
+    else if (VSize(Outer.MyBP.Acceleration) > 0.0)
+    {
+        // custom actions issue
+        Outer.MyBP.SetDesiredSpeed(0.0);
+        Outer.MyBP.Acceleration = vect(0.0,0.0,0.0);
     }
 
     // find target
     Outer.SelectTargetPlayer();
     Outer.UpdateFocus();
+
     // and always attack
     if (Outer.m_agentTarget != None && ShouldAttack())
         Outer.StartFiring();

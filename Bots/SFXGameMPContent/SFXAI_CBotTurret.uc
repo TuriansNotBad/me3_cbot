@@ -15,7 +15,6 @@ enum ECBotVis
 function Initialize()
 {
     Super(SFXAI_Core).Initialize();
-    HaltWaves(true);
 }
 
 function Print(coerce string msg)
@@ -36,7 +35,8 @@ function ECBotVis GetPawnVisibilityType(Pawn testpawn)
     idx = GetEnemyIndex(testpawn);
     if (idx < 0)
         return CanAttack(testpawn) ? ECBotVis.Unaware : ECBotVis.NotVisible;
-    return TimeSinceEnemyVisible(idx) > 0.0 ? ECBotVis.NotVisible : ECBotVis.Normal;
+    // && TimeSinceEnemyVisible(idx) > 0.0
+    return CanAttack(testpawn) ? ECBotVis.Normal : ECBotVis.NotVisible;
 }
 
 function HaltWaves(bool pause)
@@ -77,27 +77,55 @@ protected function _SetEngineTargetVals()
     ShotTarget = Pawn(m_agentTarget);
 }
 
+private function bool _IsTargetViableToPick(Pawn testTarget)
+{
+    return testTarget != None
+        && !testTarget.IsInState('Downed')
+        && testTarget.IsValidTargetFor(self)
+        && GetPawnVisibilityType(testTarget) != ECBotVis.NotVisible;
+}
+
+function float GetPawnHealthPct(BioPawn pwn)
+{
+    return pwn.GetCurrentHealth() / pwn.GetMaxHealth();
+}
+
 function bool SelectTargetPlayer()
 {
-    local BioPlayerController PC;
+    local Controller PC;
     local Pawn potentialTar;
+    local BioPawn curTar;
     local Actor OldTarget;
     local bool bResult;
+    local float bestDist;
+    local float tempDist;
     
-    if (IsAgentTargetValid(m_agentTarget) && WorldInfo.GameTimeSeconds - TargetAcquisitionTime < 0.5)
+    curTar = BioPawn(m_agentTarget);
+    if (IsAgentTargetValid(curTar) && WorldInfo.GameTimeSeconds - TargetAcquisitionTime < 0.5)
         return true;
 
     OldTarget = m_agentTarget;
 
-    foreach WorldInfo.AllControllers(Class'BioPlayerController', PC)
-    {
-        if (PC.Pawn.IsInState('Downed') || !PC.Pawn.IsValidTargetFor(self) || GetPawnVisibilityType(PC.Pawn) == ECBotVis.NotVisible)
-            continue;
-        potentialTar = PC.Pawn;
-        break;
-    }
+    // don't switch from low health enemies
+    if (_IsTargetViableToPick(curTar) && curTar != None && GetPawnHealthPct(curTar) < 0.20 && curTar.GetCurrentShields() < 0.1)
+        return true;
 
+    // find closest enemy
+    bestDist = 100000000.0;
+    foreach WorldInfo.AllControllers(Class'Controller', PC)
+    {
+        if (!_IsTargetViableToPick(PC.Pawn))
+            continue;
+        
+        tempDist = VSize(MyBP.location - PC.Pawn.location);
+        if (bestDist > tempDist)
+        {
+            bestDist = tempDist;
+            potentialTar = PC.Pawn;
+        }
+    }
     bResult = IsAgentEnemyValid(potentialTar);
+
     if (bResult)
     {
         m_agentTarget = potentialTar;
@@ -111,10 +139,7 @@ function bool SelectTargetPlayer()
         }
     }
     else
-    {
         m_agentTarget = None;
-        TargetAcquisitionTime = 0.0;
-    }
 
     return bResult;
 }
@@ -235,6 +260,46 @@ function CBotDebugDrawRemove()
     }
 }
 
+private function CBotDebugDraw_EnemyEval(BioPlayerController PC, BioCheatManager cmgr)
+{
+    local Controller C;
+    local Canvas canvas;
+    local Color highlight;
+    local BioPawn curTar;
+    local string str;
+
+    canvas = PC.myHUD.Canvas;
+    if (canvas == None)
+        return;
+
+    curTar = BioPawn(m_agentTarget);
+    highlight.R = 255;
+    highlight.A = 255;
+    
+    str = m_agentTarget @ "V:" @ _IsTargetViableToPick(curTar);
+    if (curTar != None)
+        str @= "D:" @ VSize(MyBP.location - curTar.location) @ "HP:" @ GetPawnHealthPct(curTar);
+    
+    cmgr.DrawProfileText(str);
+    cmgr.DrawProfileText("-------------------------");
+    foreach WorldInfo.AllControllers(Class'Controller', C)
+    {
+        curTar = BioPawn(C.Pawn);
+        if (curTar == None) continue;
+        canvas.DrawColor = curTar == Pawn(m_agentTarget) ? highlight : cmgr.ProfileTextColor;
+        canvas.DrawText(
+            curTar
+            @ "V:"
+            @ _IsTargetViableToPick(curTar)
+            @ "D:"
+            @ VSize(MyBP.location - curTar.location)
+            @ "HP:"
+            @ GetPawnHealthPct(curTar),
+        );
+        canvas.CurX = cmgr.GetProfileColumnCoord();
+    }
+}
+
 function CBotDebugDraw(BioHUD HUD)
 {
     local BioPlayerController PC;
@@ -248,17 +313,24 @@ function CBotDebugDraw(BioHUD HUD)
         PC.myHUD.Canvas.SetPos(PC.myHUD.Canvas.CurX, 90.0);
         cmgr.DrawProfileText("Debug for" @ self);
         cmgr.DrawProfileText("-------------------------");
+        cmgr.DrawProfileHeaderText("FireTarget:");
+        cmgr.DrawProfileText(FireTarget);
+        cmgr.DrawProfileHeaderText("Enemy:");
+        cmgr.DrawProfileText(Enemy);
         cmgr.DrawProfileHeaderText("Attack target:");
         cmgr.DrawProfileText(m_agentTarget);
         cmgr.DrawProfileHeaderText("Focus:");
         cmgr.DrawProfileText(Focus);
         cmgr.DrawProfileHeaderText("FocalPoint:");
         cmgr.DrawProfileText(GetFocalPoint());
+        cmgr.DrawProfileText("-------------------------");
+        cmgr.DrawProfileText("Enemy evaluation:");
+        CBotDebugDraw_EnemyEval(PC, cmgr);
     }
-
 }
 
 defaultproperties
 {
     DefaultCommand = Class'SFXAICmd_Base_CBotTurret'
+    bUseTicketing = false
 }
