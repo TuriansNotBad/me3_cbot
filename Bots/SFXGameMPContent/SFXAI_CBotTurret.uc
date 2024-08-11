@@ -2,7 +2,7 @@ Class SFXAI_CBotTurret extends SFXAI_Cover
     placeable
     config(AI);
 
-var Vector m_createdPt;
+var SFXCBot_TagPoint m_createdNP;
 var Actor m_agentTarget;
 
 enum ECBotVis
@@ -15,6 +15,7 @@ enum ECBotVis
 function Initialize()
 {
     Super(SFXAI_Core).Initialize();
+    HaltWaves(true);
 }
 
 function Print(coerce string msg)
@@ -331,6 +332,8 @@ function CBotDebugDraw(BioHUD HUD)
 
 defaultproperties
 {
-    DefaultCommand = Class'SFXAICmd_Base_CBotTurret'
-    bUseTicketing = false
+    DefaultCommand=Class'SFXAICmd_Base_CBotTurret'
+    bUseTicketing=false
+    m_bAvoidDangerLinks=false
+    MoveFireDelayTime=(X=0.001,Y=0.001)
 }

@@ -7,8 +7,9 @@ function bool ShouldAttack()
 
 function Pushed()
 {
-    Outer.m_createdPt = Outer.MyBP.location;
     Outer.MyBP.SightRadius = 9000.0;
+    if (Outer.m_createdNP == None)
+        Outer.m_createdNP = Outer.Spawn(Class'SFXCBot_TagPoint', , , Outer.MyBP.location, , , true);
 }
 
 auto state Combat extends InCombat 
@@ -22,15 +23,15 @@ Begin:
         Outer.MyBP.LockDesiredRotation(false);
 
     // stay in my spawn
-    if (VSize(Outer.MyBP.location - Outer.m_createdPt) > 50.0)
+    if (Outer.m_createdNP != None && VSize(Outer.MyBP.location - Outer.m_createdNP.location) > 50.0)
     {
-        Class'SFXAICmd_MoveToLocation'.static.MoveToLocation(Outer, Outer.m_createdPt, 0.0, true, true);
+        Class'SFXAICmd_MoveToGoal'.static.MoveToGoal(Outer, Outer.m_createdNP, 0.0, true, true);
     }
     else if (VSize(Outer.MyBP.Acceleration) > 0.0)
     {
         // custom actions issue
         Outer.MyBP.SetDesiredSpeed(0.0);
-        Outer.MyBP.Acceleration = vect(0.0,0.0,0.0);
+        Outer.MyBP.StopMovement(false);
     }
 
     // find target
