@@ -4,6 +4,7 @@ Class SFXAI_CBotTurret extends SFXAI_Cover
 
 var SFXCBot_TagPoint m_createdNP;
 var Actor m_agentTarget;
+var EAimNodes m_lastAimNode;
 
 enum ECBotVis
 {
@@ -12,10 +13,23 @@ enum ECBotVis
     NotVisible
 };
 
+enum EAimNodes
+{
+    AimNode_Cover,
+    AimNode_Head,
+    AimNode_LeftShoulder,
+    AimNode_RightShoulder,
+    AimNode_Chest,
+    AimNode_Groin,
+    AimNode_LeftKnee,
+    AimNode_RightKnee,
+};
+
 function Initialize()
 {
     Super(SFXAI_Core).Initialize();
     HaltWaves(true);
+    m_lastAimNode = EAimNodes.AimNode_Cover;
 }
 
 function Print(coerce string msg)
@@ -29,15 +43,133 @@ function Print(coerce string msg)
     }
 }
 
+function float GetWpnPenetrationDistance(optional Pawn testpawn)
+{
+    local SFXWeapon wpn;
+
+    if (testpawn == None) testpawn = MyBP;
+    wpn = SFXWeapon(testpawn.Weapon);
+    if (wpn == None) return 0.0;
+    return wpn.DistancePenetrated + (wpn.PenetrationBonus.Value - 1.0) * 100.0;
+}
+
 function ECBotVis GetPawnVisibilityType(Pawn testpawn)
 {
     local int idx;
 
     idx = GetEnemyIndex(testpawn);
     if (idx < 0)
-        return CanAttack(testpawn) ? ECBotVis.Unaware : ECBotVis.NotVisible;
-    // && TimeSinceEnemyVisible(idx) > 0.0
-    return CanAttack(testpawn) ? ECBotVis.Normal : ECBotVis.NotVisible;
+        return IsAnyAimNodeVisible(BioPawn(testpawn)) ? ECBotVis.Unaware : ECBotVis.NotVisible;
+    return IsAnyAimNodeVisible(BioPawn(testpawn)) ? ECBotVis.Normal : ECBotVis.NotVisible;
+}
+
+function bool IsAnyAimNodeVisible(BioPawn testpawn)
+{
+    local int i;
+
+    if (testpawn == None)
+        return false;
+
+    return IsAimNodeVisible(testpawn, EAimNodes.AimNode_Chest)
+        || IsAimNodeVisible(testpawn, EAimNodes.AimNode_Head)
+        || IsAimNodeVisible(testpawn, EAimNodes.AimNode_LeftKnee)
+        || IsAimNodeVisible(testpawn, EAimNodes.AimNode_RightKnee);
+}
+
+function bool IsAimNodeVisible(BioPawn testpawn, EAimNodes node, optional out Vector vNodeLocation)
+{
+    local Vector vAimLocation;
+    local Vector vAttackOrigin;
+    local SFXWeapon wpnAgent;
+    local array<ImpactInfo> impactList;
+    local ImpactInfo wpnImpact;
+    local ImpactInfo impactItr;
+    local bool result;
+
+    if (testpawn == None)
+        return false;
+    
+    if (!testpawn.GetAimNodeLocation(node, vAimLocation))
+        return false;
+    
+    if (vAimLocation.x == 0.0)
+        return false;
+
+    result        = false;
+    
+    wpnAgent = SFXWeapon(MyBP.Weapon);
+    if (wpnAgent != None)
+    {
+        vAttackOrigin = wpnAgent.GetPhysicalFireStartLoc();
+        // todo: limit length to distance to aim location + penetration depth + padding?
+        wpnImpact = wpnAgent.CalcWeaponFire(
+            vAttackOrigin,
+            vAttackOrigin + Vector(Rotator(vAimLocation - vAttackOrigin)) * Pawn.SightRadius,
+            impactList
+        );
+        foreach impactList(impactItr)
+        {
+            if (testpawn == impactItr.HitActor)
+            {
+                result = true;
+                break;
+            }
+        }
+    }
+    else
+    {
+        vAttackOrigin = MyBP.GetWeaponStartTraceLocation();
+        result = CanAISeeByPoints(vAttackOrigin, vAimLocation, Rotator(vAimLocation - vAttackOrigin), false);
+    }
+    
+    if (result)
+        vNodeLocation = vAimLocation;
+    return result;
+}
+
+private function bool GetAimLocIsAimNodeVisWrapper(BioPawn testpawn, EAimNodes node, out Vector vNodePos, out EAimNodes outNode)
+{
+    if (IsAimNodeVisible(testpawn, node, vNodePos))
+    {
+        outNode = node;
+        return true;
+    }
+    return false;
+}
+
+// @todo: aim does not update if agent has armor piercing
+function Vector GetAimLocation(optional Actor oAimTarget)
+{
+    local Vector vAimLocation;
+    local EAimNodes ePreferNode;
+    local EAimNodes eAltPreferNode;
+
+    if (oAimTarget == None)
+        oAimTarget = m_agentTarget;
+    
+    if (oAimTarget != None)
+    {
+        ePreferNode    = EAimNodes.AimNode_Head;
+        eAltPreferNode = EAimNodes.AimNode_Chest;
+        // @todo: maybe sfxweapon has a better way to determine dist to stop aiming for the head at
+        if (VSize(oAimTarget.location - MyBP.location) > 1000.0)
+        {
+            ePreferNode    = EAimNodes.AimNode_Chest;
+            eAltPreferNode = EAimNodes.AimNode_Head;
+        }
+    }
+
+    // if head, chest, lknee, and rknee are not visible use default
+    if (!GetAimLocIsAimNodeVisWrapper(BioPawn(oAimTarget), ePreferNode,                vAimLocation, m_lastAimNode))
+    if (!GetAimLocIsAimNodeVisWrapper(BioPawn(oAimTarget), eAltPreferNode,             vAimLocation, m_lastAimNode))
+    if (!GetAimLocIsAimNodeVisWrapper(BioPawn(oAimTarget), EAimNodes.AimNode_LeftKnee, vAimLocation, m_lastAimNode))
+    if (!GetAimLocIsAimNodeVisWrapper(BioPawn(oAimTarget), EAimNodes.AimNode_RightKnee,vAimLocation, m_lastAimNode))
+    {
+        m_lastAimNode = EAimNodes.AimNode_Cover;
+        vAimLocation  = Super(SFXAI_Cover).GetAimLocation(oAimTarget);
+    }
+    
+    return vAimLocation;
 }
 
 function HaltWaves(bool pause)
@@ -115,12 +247,12 @@ function bool SelectTargetPlayer()
     bestDist = 100000000.0;
     foreach WorldInfo.AllControllers(Class'Controller', PC)
     {
-        if (!_IsTargetViableToPick(PC.Pawn))
-            continue;
-        
         tempDist = VSize(MyBP.location - PC.Pawn.location);
         if (bestDist > tempDist)
         {
+            if (!_IsTargetViableToPick(PC.Pawn))
+                continue;
+        
             bestDist = tempDist;
             potentialTar = PC.Pawn;
         }
@@ -301,10 +433,86 @@ private function CBotDebugDraw_EnemyEval(BioPlayerController PC, BioCheatManager
     }
 }
 
+private function CBotDebugDrawLineToAimNode(BioPawn testpawn, Vector vStart, EAimNodes node, Color vis, Color nvis)
+{
+    local Vector vEnd;
+    local Color cCol;
+
+    if (testpawn == None || !testpawn.GetAimNodeLocation(node, vEnd))
+        return;
+    
+    cCol = nvis;
+    if (IsAimNodeVisible(testpawn, node))
+        cCol = vis;
+    if (node == m_lastAimNode)
+    {
+        cCol.r = 0; cCol.g = 0; cCol.b = 255;
+    }
+    DrawDebugLine(vStart, vEnd, cCol.r, cCol.g, cCol.b);
+    DrawDebugSphere(vEnd, 25, 6, cCol.r, cCol.g, cCol.b);
+}
+
+function CBotDebugDraw_LineToAimWrapper(BioCheatManager cmgr, BioPawn testpawn, Vector vStart, EAimNodes node, Color vis, Color nvis, optional out float inFPenDist)
+{
+    local Vector vAttackOrigin;
+    local Vector vTraceEnd;
+    local Vector vEnd;
+    local ImpactInfo wpnImpact;
+    local ImpactInfo impactItr;
+    local array<ImpactInfo> impactList;
+    local SFXWeapon wpnAgent;
+    local Color cCol;
+    local bool bActorHit;
+    local float fPenDist;
+    
+    wpnAgent = SFXWeapon(MyBP.Weapon);
+    if (testpawn == None || !testpawn.GetAimNodeLocation(node, vEnd) || wpnAgent == None)
+        return;
+
+    vAttackOrigin = wpnAgent.GetPhysicalFireStartLoc();
+    vTraceEnd = vAttackOrigin + Vector(Rotator(vEnd - vAttackOrigin)) * MyBP.SightRadius;
+    fPenDist = wpnAgent.DistancePenetrated;
+    wpnAgent.DistancePenetrated = 1000000.0;
+    wpnImpact = wpnAgent.CalcWeaponFire(vAttackOrigin, vTraceEnd, impactList);
+    wpnAgent.DistancePenetrated = fPenDist;
+    cCol = nvis;
+    foreach impactList(impactItr)
+    {
+        if (testpawn == impactItr.HitActor)
+        {
+            DrawDebugSphere(impactItr.HitLocation, 25, 6, 0, 0, 255);
+            fPenDist = impactItr.PenetrationDepth;
+            if (fPenDist <= GetWpnPenetrationDistance())
+                cCol = vis;
+            bActorHit = true;
+        }
+        else
+            DrawDebugSphere(impactItr.HitLocation, 25, 6, 255, 255, 255);
+    }
+    
+    if (node == m_lastAimNode)
+    {
+        cCol.r = 0; cCol.g = 255; cCol.b = 0;
+    }
+    inFPenDist = bActorHit ? fPenDist : -1.0;
+    DrawDebugLine(vStart, vTraceEnd, cCol.r, cCol.g, cCol.b);
+    //DrawDebugSphere(vEnd, 25, 6, cCol.r, cCol.g, cCol.b);
+}
+
 function CBotDebugDraw(BioHUD HUD)
 {
     local BioPlayerController PC;
     local BioCheatManager cmgr;
+    local Vector vLineStart;
+    local Vector vLineStop;
+    local Color vis;
+    local Color nvis;
+    local BioPawn bp;
+    local float fPenDist;
+
+    vLineStart = SFXWeapon(MyBP.Weapon) != None ? SFXWeapon(MyBP.Weapon).GetPhysicalFireStartLoc() : MyBP.GetWeaponStartTraceLocation();
+    vis.G  = 255; vis.B = 255; vis.R = 255;
+    nvis.R = 255;
     
     foreach WorldInfo.AllControllers(Class'BioPlayerController', PC)
     {
@@ -326,7 +534,16 @@ function CBotDebugDraw(BioHUD HUD)
         cmgr.DrawProfileText(GetFocalPoint());
         cmgr.DrawProfileText("-------------------------");
         cmgr.DrawProfileText("Enemy evaluation:");
-        CBotDebugDraw_EnemyEval(PC, cmgr);
+        //CBotDebugDraw_EnemyEval(PC, cmgr);
+        // -----------------------------------------------
+        CBotDebugDraw_LineToAimWrapper(cmgr, BioPawn(PC.Pawn), vLineStart, EAimNodes.AimNode_Chest,    vis, nvis, fPenDist);
+        CBotDebugDraw_LineToAimWrapper(cmgr, BioPawn(PC.Pawn), vLineStart, EAimNodes.AimNode_Head,     vis, nvis);
+        CBotDebugDraw_LineToAimWrapper(cmgr, BioPawn(PC.Pawn), vLineStart, EAimNodes.AimNode_LeftKnee, vis, nvis);
+        CBotDebugDraw_LineToAimWrapper(cmgr, BioPawn(PC.Pawn), vLineStart, EAimNodes.AimNode_RightKnee,vis, nvis);
+
+        cmgr.DrawProfileText("-------------------------");
+        cmgr.DrawProfileText("Penetration:");
+        cmgr.DrawProfileText("Required:" @ fPenDist @ "Available:" @ GetWpnPenetrationDistance());
     }
 }
 
