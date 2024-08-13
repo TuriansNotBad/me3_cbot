@@ -40,9 +40,15 @@ Begin:
 
     // and always attack
     if (Outer.m_agentTarget != None && ShouldAttack())
+    {
         Outer.StartFiring();
+    }
     else
+    {
         Outer.StopFiring();
+        if (Outer.ShouldReload())
+            Outer.RELOAD();;
+    }
 
     Outer.Sleep(0.1);
     goto 'Begin';

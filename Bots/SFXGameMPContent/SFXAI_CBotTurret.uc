@@ -95,7 +95,7 @@ function bool IsAimNodeVisible(BioPawn testpawn, EAimNodes node, optional out Ve
     if (vAimLocation.x == 0.0)
         return false;
 
-    result        = false;
+    result = false;
     
     wpnAgent = SFXWeapon(MyBP.Weapon);
     if (wpnAgent != None)
@@ -104,7 +104,7 @@ function bool IsAimNodeVisible(BioPawn testpawn, EAimNodes node, optional out Ve
         // todo: limit length to distance to aim location + penetration depth + padding?
         wpnImpact = wpnAgent.CalcWeaponFire(
             vAttackOrigin,
-            vAttackOrigin + Vector(Rotator(vAimLocation - vAttackOrigin)) * Pawn.SightRadius,
+            vAttackOrigin + Vector(Rotator(vAimLocation - vAttackOrigin)) * MyBP.SightRadius,
             impactList
         );
         foreach impactList(impactItr)
