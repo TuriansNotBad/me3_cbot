@@ -3,7 +3,6 @@ Class SFXAI_CBotTurret extends SFXAI_Cover
     config(AI);
 
 // @todo: some enemies cause issues (seem to be getting rejected by selection), such as praetorian, geth bomber, collector web etc.
-// @todo: some inherited Notify functions are applying unwanted behaviours
 // @todo: add weapon mods
 // @todo: add gear item
 // @todo: implement system for applying relevant active match consumables
@@ -401,6 +400,8 @@ function bool ChooseAttack(Actor oTarget, out Name nmPowerName)
     }
     return TRUE;
 }
+
+function NotifyStuck();
 
 function CBotDebugDrawInit()
 {
