@@ -155,7 +155,7 @@ function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr
     if (agentWpn != "")
     {
         agentWpn = "SFXGameContent." $ agentWpn;
-        agentPrimp.SetWeapon(0, Name(agentWpn), 9);
+        agentPrimp.SetWeapon(0, Name(agentWpn), 10);
     }
 
     agentArchetype = SFXPawn_PlayerMP(

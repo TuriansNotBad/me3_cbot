@@ -2,6 +2,22 @@ Class SFXAI_CBotTurret extends SFXAI_Cover
     placeable
     config(AI);
 
+// @todo: some enemies cause issues (seem to be getting rejected by selection), such as praetorian, geth bomber, collector web etc.
+// @todo: some inherited Notify functions are applying unwanted behaviours
+// @todo: add weapon mods
+// @todo: add gear item
+// @todo: implement system for applying relevant active match consumables
+// @todo: random or inputted names and colors
+// @todo: aim node does not update if agent has armor piercing and current node is still valid
+// @todo: use weapon stats to determine distance at which we stop aiming for the head
+// @todo: UX - power lockout when agent spawns
+// @todo: UX - blood screen if damage enabled
+// @todo: UX - currently ghosting player forever when spawning
+
+const c_AMCAP4   = -814405748;
+const c_AMCCM4   = 1915545774;
+const c_AMCARRA3 = -370375887;
+
 var SFXCBot_TagPoint m_createdNP;
 var Actor m_agentTarget;
 var EAimNodes m_lastAimNode;
@@ -27,9 +43,24 @@ enum EAimNodes
 
 function Initialize()
 {
+    local SFXPRIMP PRIMP;
+    local BioPlayerController PC;
+    local int idx;
+    
+    foreach WorldInfo.AllControllers(Class'BioPlayerController', PC)
+    {
+        PRIMP = SFXPRIMP(PC.PlayerReplicationInfo);
+        for (idx = 0; idx < 4; ++idx)
+            Print(PRIMP.ActiveMatchConsumables[idx].ClassNameID @ PRIMP.ActiveMatchConsumables[idx].Value);
+        break;
+    }
     Super(SFXAI_Core).Initialize();
-    HaltWaves(true);
+    //HaltWaves(true);
     m_lastAimNode = EAimNodes.AimNode_Cover;
+    AddActiveMatchConsumable(c_AMCAP4,   3);
+    AddActiveMatchConsumable(c_AMCARRA3, 2);
+    AddActiveMatchConsumable(c_AMCCM4,   3);
+    PlayerReplicationInfo.bBot = false;
 }
 
 function Print(coerce string msg)
@@ -41,6 +72,15 @@ function Print(coerce string msg)
         PC.ClientMessage(msg);
         break;
     }
+}
+
+function AddActiveMatchConsumable(int consumeClassNameId, int consumeLevel)
+{
+    local SFXPRIMP primp;
+
+    primp = SFXPRIMP(PlayerReplicationInfo);
+    if (primp != None)
+        primp.AddActiveMatchConsumable(consumeClassNameId, consumeLevel);
 }
 
 function float GetWpnPenetrationDistance(optional Pawn testpawn)
@@ -101,7 +141,6 @@ function bool IsAimNodeVisible(BioPawn testpawn, EAimNodes node, optional out Ve
     if (wpnAgent != None)
     {
         vAttackOrigin = wpnAgent.GetPhysicalFireStartLoc();
-        // todo: limit length to distance to aim location + penetration depth + padding?
         wpnImpact = wpnAgent.CalcWeaponFire(
             vAttackOrigin,
             vAttackOrigin + Vector(Rotator(vAimLocation - vAttackOrigin)) * MyBP.SightRadius,
@@ -137,7 +176,6 @@ private function bool GetAimLocIsAimNodeVisWrapper(BioPawn testpawn, EAimNodes n
     return false;
 }
 
-// @todo: aim does not update if agent has armor piercing
 function Vector GetAimLocation(optional Actor oAimTarget)
 {
     local Vector vAimLocation;
@@ -151,7 +189,6 @@ function Vector GetAimLocation(optional Actor oAimTarget)
     {
         ePreferNode    = EAimNodes.AimNode_Head;
         eAltPreferNode = EAimNodes.AimNode_Chest;
-        // @todo: maybe sfxweapon has a better way to determine dist to stop aiming for the head at
         if (VSize(oAimTarget.location - MyBP.location) > 1000.0)
         {
             ePreferNode    = EAimNodes.AimNode_Chest;
@@ -552,5 +589,6 @@ defaultproperties
     DefaultCommand=Class'SFXAICmd_Base_CBotTurret'
     bUseTicketing=false
     m_bAvoidDangerLinks=false
+    m_fReloadThreshold=1.0
     MoveFireDelayTime=(X=0.001,Y=0.001)
 }
