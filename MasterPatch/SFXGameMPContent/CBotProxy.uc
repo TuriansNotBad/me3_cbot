@@ -76,7 +76,6 @@ function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr
     local SFXPawn_PlayerMP AIPawn;
     local Class<AIController> AIControllerClass;
     local SFXAI_Core AI;
-    local BioBaseSquad PlayerSquad;
     local BioWorldInfo BWI;
     local SFXPRIMP agentPrimp;
     local Actor agentArchetype;
@@ -180,17 +179,11 @@ function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr
     PC.bGodMode = TRUE;
     AI.bGodMode = TRUE;
     
-    PlayerSquad = PlayerPawn.Squad;
-    PlayerSquad.AddMember(AIPawn, FALSE);
-    
     AIPawn.m_fPowerUsePercent = BWI.m_fAutoBotAttackPowerPercent;
     
     // level up
     SFXPawn_Player(AIPawn).AutoLevelUpInfo = SFXPawn_Player(AIPawn).PlayerClass.default.AutoLevelUpInfo;
-    SFXPawn_Player(PlayerPawn).AutoLevelUpInfo = SFXPawn_Player(PlayerPawn).PlayerClass.default.AutoLevelUpInfo;
     cheatMgr.MPBotsLevelUp(AIPawn, 20);
-    
-    BWI.SetAutoBotsEnabled(TRUE);
 }
 
 defaultproperties

@@ -2,6 +2,7 @@ Class SFXAI_CBotTurret extends SFXAI_Cover
     placeable
     config(AI);
 
+// @todo: praetorian/brute headshots
 // @todo: some enemies cause issues (seem to be getting rejected by selection), such as praetorian, geth bomber, collector web etc.
 // @todo: add weapon mods
 // @todo: add gear item
@@ -9,6 +10,7 @@ Class SFXAI_CBotTurret extends SFXAI_Cover
 // @todo: random or inputted names and colors
 // @todo: aim node does not update if agent has armor piercing and current node is still valid
 // @todo: use weapon stats to determine distance at which we stop aiming for the head
+// @todo: aim jerking when target point blank
 // @todo: UX - power lockout when agent spawns
 // @todo: UX - blood screen if damage enabled
 // @todo: UX - currently ghosting player forever when spawning
@@ -308,8 +310,10 @@ function bool SelectTargetPlayer()
         }
     }
     else
+    {
         m_agentTarget = None;
-
+        _SetEngineTargetVals();
+    }
     return bResult;
 }
 
@@ -545,7 +549,7 @@ function CBotDebugDraw(BioHUD HUD)
     local Vector vLineStop;
     local Color vis;
     local Color nvis;
-    local BioPawn bp;
+    local BioPawn bpAimTarget;
     local float fPenDist;
 
     vLineStart = SFXWeapon(MyBP.Weapon) != None ? SFXWeapon(MyBP.Weapon).GetPhysicalFireStartLoc() : MyBP.GetWeaponStartTraceLocation();
@@ -574,10 +578,12 @@ function CBotDebugDraw(BioHUD HUD)
         cmgr.DrawProfileText("Enemy evaluation:");
         //CBotDebugDraw_EnemyEval(PC, cmgr);
         // -----------------------------------------------
-        CBotDebugDraw_LineToAimWrapper(cmgr, BioPawn(PC.Pawn), vLineStart, EAimNodes.AimNode_Chest,    vis, nvis, fPenDist);
-        CBotDebugDraw_LineToAimWrapper(cmgr, BioPawn(PC.Pawn), vLineStart, EAimNodes.AimNode_Head,     vis, nvis);
-        CBotDebugDraw_LineToAimWrapper(cmgr, BioPawn(PC.Pawn), vLineStart, EAimNodes.AimNode_LeftKnee, vis, nvis);
-        CBotDebugDraw_LineToAimWrapper(cmgr, BioPawn(PC.Pawn), vLineStart, EAimNodes.AimNode_RightKnee,vis, nvis);
+        bpAimTarget = BioPawn(m_agentTarget);
+        if (bpAimTarget == None) bpAimTarget = BioPawn(PC.Pawn);
+        CBotDebugDraw_LineToAimWrapper(cmgr, bpAimTarget, vLineStart, EAimNodes.AimNode_Chest,    vis, nvis, fPenDist);
+        CBotDebugDraw_LineToAimWrapper(cmgr, bpAimTarget, vLineStart, EAimNodes.AimNode_Head,     vis, nvis);
+        CBotDebugDraw_LineToAimWrapper(cmgr, bpAimTarget, vLineStart, EAimNodes.AimNode_LeftKnee, vis, nvis);
+        CBotDebugDraw_LineToAimWrapper(cmgr, bpAimTarget, vLineStart, EAimNodes.AimNode_RightKnee,vis, nvis);
 
         cmgr.DrawProfileText("-------------------------");
         cmgr.DrawProfileText("Penetration:");
