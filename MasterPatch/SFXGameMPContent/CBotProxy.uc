@@ -81,6 +81,7 @@ function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr
     local Actor agentArchetype;
     local string agentKit;
     local string agentWpn;
+    local SFXModule_DamagePlayer dmgMod;
     
     if (kitId == "dbg")
     {
@@ -113,12 +114,6 @@ function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr
         return;
     }
     
-    if (SFXPRIMP(PC.PlayerReplicationInfo) == None)
-    {
-        PC.ClientMessage("CBot: no mp PlayerReplicationInfo");
-        return;
-    }
-    
     PlayerPawn = SFXPawn(PC.Pawn);
     if (PlayerPawn == None)
     {
@@ -127,7 +122,7 @@ function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr
     }
     
     // allow spawning inside of PC for now
-    PlayerPawn.bBlockActors = FALSE;
+    PlayerPawn.bBlockActors = false;
     
     // Spawn AI Controller
     
@@ -171,19 +166,22 @@ function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr
         AIPawn.Kit = agentPrimp.GetCharacterKit();
     }
     
-    AI.Possess(AIPawn, FALSE);
+    AI.Possess(AIPawn, false);
     AIPawn.SetLocation(PlayerPawn.location, );
-    AIPawn.SetRotation(PC.Rotation);
+    AIPawn.SetRotation(PlayerPawn.Rotation);
     AI.SetTeam(0);
     
-    PC.bGodMode = TRUE;
-    AI.bGodMode = TRUE;
-    
-    AIPawn.m_fPowerUsePercent = BWI.m_fAutoBotAttackPowerPercent;
+    PC.bGodMode = true;
+    AIPawn.m_bMin1Health = true;
     
     // level up
-    SFXPawn_Player(AIPawn).AutoLevelUpInfo = SFXPawn_Player(AIPawn).PlayerClass.default.AutoLevelUpInfo;
+    AIPawn.AutoLevelUpInfo = AIPawn.PlayerClass.default.AutoLevelUpInfo;
     cheatMgr.MPBotsLevelUp(AIPawn, 20);
+
+    // disable bleed out effects
+    dmgMod = AIPawn.GetModule(Class'SFXModule_DamagePlayer');
+    dmgMod.BleedoutSFXInterpSpeed = 0.0;
+    dmgMod.BleedoutVFXInterpSpeed = 0.0;
 }
 
 defaultproperties
