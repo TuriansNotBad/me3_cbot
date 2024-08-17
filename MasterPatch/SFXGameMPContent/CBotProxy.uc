@@ -56,16 +56,13 @@ private function ToggleDebugForAgent(BioPlayerController PC, coerce int idx)
     local SFXAI_CBotTurret agent;
     local int i;
 
-    if (idx <= 0)
-        return;
-
     idx--;
     foreach PC.WorldInfo.AllControllers(Class'SFXAI_CBotTurret', agent)
     {
         if (i == idx)
-            agent.CBotDebugDrawInit();
+            agent.CBotDebugDrawInit(PC);
         else
-            agent.CBotDebugDrawRemove();
+            agent.CBotDebugDrawRemove(PC);
         ++i;
     }
 }

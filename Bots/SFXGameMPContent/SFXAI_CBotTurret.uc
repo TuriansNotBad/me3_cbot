@@ -101,6 +101,15 @@ function ECBotVis GetPawnVisibilityType(Pawn testpawn)
     return IsAnyAimNodeVisible(BioPawn(testpawn)) ? ECBotVis.Normal : ECBotVis.NotVisible;
 }
 
+function float GetPawnHealthPct(BioPawn pwn)
+{
+    return pwn.GetCurrentHealth() / pwn.GetMaxHealth();
+}
+
+// -------------------------------------------------------------------------
+//                               AIMING
+// -------------------------------------------------------------------------
+
 function bool IsAnyAimNodeVisible(BioPawn testpawn)
 {
     if (testpawn == None) return false;
@@ -263,26 +272,9 @@ function Vector GetAimLocation(optional Actor oAimTarget)
     return vAimLocation;
 }
 
-function HaltWaves(bool pause)
-{
-    local SFXGRIMP gri;
-    local SFXWaveCoordinator_HordeOperation horde;
-
-    gri = SFXGRIMP(WorldInfo.GRI);
-    if (gri == None) return;
-    horde = SFXWaveCoordinator_HordeOperation(gri.WaveCoordinator);
-    if (horde == None) return;
-    if (pause)
-    {
-        horde.BetweenWaveDelay = 100000000.0;
-        horde.GoToWave(0);
-    }
-    else
-    {
-        horde.BetweenWaveDelay = 10.0;
-        horde.GoToWave(0);
-    }
-}
+// -------------------------------------------------------------------------
+//                           Target Selection
+// -------------------------------------------------------------------------
 
 function bool IsAgentTargetValid(Actor testTarget)
 {
@@ -307,11 +299,6 @@ private function bool _IsTargetViableToPick(Pawn testTarget)
         && !testTarget.IsInState('Downed')
         && testTarget.IsValidTargetFor(self)
         && GetPawnVisibilityType(testTarget) != ECBotVis.NotVisible;
-}
-
-function float GetPawnHealthPct(BioPawn pwn)
-{
-    return pwn.GetCurrentHealth() / pwn.GetMaxHealth();
 }
 
 function bool SelectTargetPlayer()
@@ -402,11 +389,6 @@ function bool UpdateFocus()
     return true;
 }
 
-function bool CanFireWeapon(Weapon Wpn, byte FireModeNum)
-{
-    return CanFireWeaponNoLOS(Wpn, FireModeNum);
-}
-
 function bool ChooseAttack(Actor oTarget, out Name nmPowerName)
 {
     local SFXWeapon oWeapon;
@@ -458,34 +440,51 @@ function bool ChooseAttack(Actor oTarget, out Name nmPowerName)
     return TRUE;
 }
 
+// -------------------------------------------------------------------------
+//           Function overrides to avoid some std behaviours
+// -------------------------------------------------------------------------
+
 function NotifyStuck();
 
-function CBotDebugDrawInit()
+function bool CanFireWeapon(Weapon Wpn, byte FireModeNum)
 {
-    local BioPlayerController PC;
-    local BioCheatManager cmgr;
+    return CanFireWeaponNoLOS(Wpn, FireModeNum);
+}
 
-    foreach WorldInfo.AllControllers(Class'BioPlayerController', PC)
+// -------------------------------------------------------------------------
+//                                DEBUG
+// -------------------------------------------------------------------------
+
+function HaltWaves(bool pause)
+{
+    local SFXGRIMP gri;
+    local SFXWaveCoordinator_HordeOperation horde;
+
+    gri = SFXGRIMP(WorldInfo.GRI);
+    if (gri == None) return;
+    horde = SFXWaveCoordinator_HordeOperation(gri.WaveCoordinator);
+    if (horde == None) return;
+    if (pause)
     {
-        cmgr = BioCheatManager(PC.CheatManager);
-        if (cmgr == None)
-            continue;
-        BioHUD(PC.myHUD).AddDebugDraw(CBotDebugDraw);
+        horde.BetweenWaveDelay = 100000000.0;
+        horde.GoToWave(0);
+    }
+    else
+    {
+        horde.BetweenWaveDelay = 10.0;
+        horde.GoToWave(0);
     }
 }
 
-function CBotDebugDrawRemove()
+function CBotDebugDrawInit(BioPlayerController PC)
 {
-    local BioPlayerController PC;
-    local BioCheatManager cmgr;
+    BioHUD(PC.myHUD).AddDebugDraw(CBotDebugDraw);
+}
 
-    foreach WorldInfo.AllControllers(Class'BioPlayerController', PC)
-    {
-        cmgr = BioCheatManager(PC.CheatManager);
-        if (cmgr == None)
-            continue;
-        BioHUD(PC.myHUD).ClearDebugDraw(CBotDebugDraw);
-    }
+function CBotDebugDrawRemove(BioPlayerController PC)
+{
+
+    BioHUD(PC.myHUD).ClearDebugDraw(CBotDebugDraw);
 }
 
 private function CBotDebugDraw_EnemyEval(BioPlayerController PC, BioCheatManager cmgr)
@@ -526,25 +525,6 @@ private function CBotDebugDraw_EnemyEval(BioPlayerController PC, BioCheatManager
         );
         canvas.CurX = cmgr.GetProfileColumnCoord();
     }
-}
-
-private function CBotDebugDrawLineToAimNode(BioPawn testpawn, Vector vStart, EAimNodes node, Color vis, Color nvis)
-{
-    local Vector vEnd;
-    local Color cCol;
-
-    if (testpawn == None || !testpawn.GetAimNodeLocation(node, vEnd))
-        return;
-    
-    cCol = nvis;
-    if (IsAimNodeVisible(testpawn, node))
-        cCol = vis;
-    if (node == m_lastAimNode)
-    {
-        cCol.r = 0; cCol.g = 0; cCol.b = 255;
-    }
-    DrawDebugLine(vStart, vEnd, cCol.r, cCol.g, cCol.b);
-    DrawDebugSphere(vEnd, 25, 6, cCol.r, cCol.g, cCol.b);
 }
 
 function CBotDebugDraw_LineToAimWrapper(BioCheatManager cmgr, BioPawn testpawn, Vector vStart, EAimNodes node, Color vis, Color nvis, optional out float inFPenDist)
