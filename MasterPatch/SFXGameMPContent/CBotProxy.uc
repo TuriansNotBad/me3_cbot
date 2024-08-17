@@ -167,7 +167,7 @@ function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr
     }
     
     AI.Possess(AIPawn, false);
-    AIPawn.SetLocation(PlayerPawn.location, );
+    AIPawn.SetLocation(PlayerPawn.location);
     AIPawn.SetRotation(PlayerPawn.Rotation);
     AI.SetTeam(0);
     

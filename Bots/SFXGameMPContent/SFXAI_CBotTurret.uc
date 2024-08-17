@@ -2,17 +2,14 @@ Class SFXAI_CBotTurret extends SFXAI_Cover
     placeable
     config(AI);
 
-// @todo: praetorian/brute headshots
-// @todo: some enemies cause issues (seem to be getting rejected by selection), such as praetorian, geth bomber, collector web etc.
 // @todo: add weapon mods
-// @todo: add gear item
-// @todo: implement system for applying relevant active match consumables
-// @todo: random or inputted names and colors
+// @todo: implement system for applying relevant active match consumables and gear item
 // @todo: aim node does not update if agent has armor piercing and current node is still valid
-// @todo: use weapon stats to determine distance at which we stop aiming for the head
 // @todo: aim jerking when target point blank
-// @todo: UX - power lockout when agent spawns
-// @todo: UX - blood screen if damage enabled
+// @todo: still experiencing major staggers when hit sideways, and maybe from behind, when shouldn't (such as bomber and scion shots)
+// @todo: add staggerfree mode toggle
+// @todo: show bot names and blue outline in matches as real players would be shown like
+// @todo: random or inputted names and colors
 // @todo: UX - currently ghosting player forever when spawning
 
 const c_AMCAP4   = -814405748;
@@ -106,37 +103,23 @@ function ECBotVis GetPawnVisibilityType(Pawn testpawn)
 
 function bool IsAnyAimNodeVisible(BioPawn testpawn)
 {
-    local int i;
-
-    if (testpawn == None)
-        return false;
-
+    if (testpawn == None) return false;
     return IsAimNodeVisible(testpawn, EAimNodes.AimNode_Chest)
-        || IsAimNodeVisible(testpawn, EAimNodes.AimNode_Head)
-        || IsAimNodeVisible(testpawn, EAimNodes.AimNode_LeftKnee)
-        || IsAimNodeVisible(testpawn, EAimNodes.AimNode_RightKnee);
+        || IsAimNodeVisible(testpawn, EAimNodes.AimNode_Head);
+        //|| IsAimNodeVisible(testpawn, EAimNodes.AimNode_LeftKnee)
+        //|| IsAimNodeVisible(testpawn, EAimNodes.AimNode_RightKnee);
 }
 
-function bool IsAimNodeVisible(BioPawn testpawn, EAimNodes node, optional out Vector vNodeLocation)
+private function bool IsAimLocationVisible(BioPawn testpawn, const out Vector vAimLocation)
 {
-    local Vector vAimLocation;
-    local Vector vAttackOrigin;
     local SFXWeapon wpnAgent;
+    local Vector vAttackOrigin;
     local array<ImpactInfo> impactList;
     local ImpactInfo wpnImpact;
     local ImpactInfo impactItr;
-    local bool result;
 
-    if (testpawn == None)
-        return false;
-    
-    if (!testpawn.GetAimNodeLocation(node, vAimLocation))
-        return false;
-    
     if (vAimLocation.x == 0.0)
         return false;
-
-    result = false;
     
     wpnAgent = SFXWeapon(MyBP.Weapon);
     if (wpnAgent != None)
@@ -148,23 +131,41 @@ function bool IsAimNodeVisible(BioPawn testpawn, EAimNodes node, optional out Ve
             impactList
         );
         foreach impactList(impactItr)
-        {
             if (testpawn == impactItr.HitActor)
-            {
-                result = true;
-                break;
-            }
-        }
+                return true;
     }
     else
     {
         vAttackOrigin = MyBP.GetWeaponStartTraceLocation();
-        result = CanAISeeByPoints(vAttackOrigin, vAimLocation, Rotator(vAimLocation - vAttackOrigin), false);
+        return CanAISeeByPoints(vAttackOrigin, vAimLocation, Rotator(vAimLocation - vAttackOrigin), false);
     }
+    return false;
+}
+
+function bool IsAimNodeVisible(BioPawn testpawn, EAimNodes node, optional out Vector vNodeLocation)
+{
+    local Vector vAimLocation;
+    local Vector vAttackOrigin;
+    local SFXWeapon wpnAgent;
+    local array<ImpactInfo> impactList;
+    local ImpactInfo wpnImpact;
+    local ImpactInfo impactItr;
+
+    if (testpawn == None)
+        return false;
     
-    if (result)
+    if (!testpawn.GetAimNodeLocation(node, vAimLocation))
+        return false;
+    
+    if (node == EAimNodes.AimNode_Chest && testpawn.IsA('SFXPawn_GethBomber'))
+        vAimLocation.Z += 3.0;
+    
+    if (IsAimLocationVisible(testpawn, vAimLocation))
+    {
         vNodeLocation = vAimLocation;
-    return result;
+        return true;
+    }
+    return false;
 }
 
 private function bool GetAimLocIsAimNodeVisWrapper(BioPawn testpawn, EAimNodes node, out Vector vNodePos, out EAimNodes outNode)
@@ -177,36 +178,88 @@ private function bool GetAimLocIsAimNodeVisWrapper(BioPawn testpawn, EAimNodes n
     return false;
 }
 
+private function bool GetDefaultAimLocation(BioPawn target, out Vector vAimLocation, EAimNodes pref, EAimNodes alt)
+{
+    if (!GetAimLocIsAimNodeVisWrapper(target, pref,                       vAimLocation, m_lastAimNode))
+    if (!GetAimLocIsAimNodeVisWrapper(target, alt,                        vAimLocation, m_lastAimNode))
+    //if (!GetAimLocIsAimNodeVisWrapper(target, EAimNodes.AimNode_LeftKnee, vAimLocation, m_lastAimNode))
+    //if (!GetAimLocIsAimNodeVisWrapper(target, EAimNodes.AimNode_RightKnee,vAimLocation, m_lastAimNode))
+    {
+        m_lastAimNode = EAimNodes.AimNode_Cover;
+        vAimLocation  = Super(SFXAI_Cover).GetAimLocation(target);
+    }
+    return true;
+}
+
+private function bool GetCollectorAimLocation(BioPawn target, out Vector vAimLocation)
+{
+    if (target.IsA('SFXPawn_Praetorian'))
+    {
+        vAimLocation = target.GetPrimarySkelMeshComponent().GetBoneLocation('Root');
+        vAimLocation.Z -= 30.0;
+        if (IsAimLocationVisible(target, vAimLocation))
+        {
+            m_lastAimNode = EAimNodes.AimNode_Head;
+            return true;
+        }
+        else if (target.GetAimNodeLocation(EAimNodes.AimNode_Head, vAimLocation))
+        {
+            m_lastAimNode = EAimNodes.AimNode_Chest;
+            return true;
+        }
+    }
+
+    return GetDefaultAimLocation(target, vAimLocation, EAimNodes.AimNode_Head, EAimNodes.AimNode_Chest);
+}
+
+private function bool GetBoneAimLocationOrDefault(BioPawn target, out Vector vAimLocation, Name bone)
+{
+    local Vector tempAim;
+
+    tempAim = target.GetPrimarySkelMeshComponent().GetBoneLocation(bone);
+    if (IsAimLocationVisible(target, tempAim))
+    {
+        vAimLocation = tempAim;
+        return true;
+    }
+    return GetDefaultAimLocation(target, vAimLocation, EAimNodes.AimNode_Chest, EAimNodes.AimNode_Head);
+}
+
 function Vector GetAimLocation(optional Actor oAimTarget)
 {
     local Vector vAimLocation;
-    local EAimNodes ePreferNode;
-    local EAimNodes eAltPreferNode;
+    local BioPawn oAimPawn;
 
     if (oAimTarget == None)
         oAimTarget = m_agentTarget;
     
-    if (oAimTarget != None)
+    oAimPawn = BioPawn(oAimTarget);
+    
+    if (oAimPawn != None)
     {
-        ePreferNode    = EAimNodes.AimNode_Head;
-        eAltPreferNode = EAimNodes.AimNode_Chest;
-        if (VSize(oAimTarget.location - MyBP.location) > 1000.0)
+        if (oAimPawn.IsA('SFXPawn_Collector_Base'))
         {
-            ePreferNode    = EAimNodes.AimNode_Chest;
-            eAltPreferNode = EAimNodes.AimNode_Head;
+            if (GetCollectorAimLocation(oAimPawn, vAimLocation))
+                return vAimLocation;
+        }
+        else if (oAimPawn.IsA('SFXPawn_Brute') || oAimPawn.IsA('SFXPawn_Banshee'))
+        {
+            m_lastAimNode = EAimNodes.AimNode_Head;
+            if (GetBoneAimLocationOrDefault(oAimPawn, vAimLocation, 'Head'))
+                return vAimLocation;
+        }
+        else if (oAimPawn.IsA('SFXPawn_GethBomber'))
+        {
+            m_lastAimNode = EAimNodes.AimNode_Chest;
+            if (GetBoneAimLocationOrDefault(oAimPawn, vAimLocation, 'Head'))
+            {
+                vAimLocation.Z += 3.3;
+                return vAimLocation;
+            }
         }
     }
 
-    // if head, chest, lknee, and rknee are not visible use default
-    if (!GetAimLocIsAimNodeVisWrapper(BioPawn(oAimTarget), ePreferNode,                vAimLocation, m_lastAimNode))
-    if (!GetAimLocIsAimNodeVisWrapper(BioPawn(oAimTarget), eAltPreferNode,             vAimLocation, m_lastAimNode))
-    if (!GetAimLocIsAimNodeVisWrapper(BioPawn(oAimTarget), EAimNodes.AimNode_LeftKnee, vAimLocation, m_lastAimNode))
-    if (!GetAimLocIsAimNodeVisWrapper(BioPawn(oAimTarget), EAimNodes.AimNode_RightKnee,vAimLocation, m_lastAimNode))
-    {
-        m_lastAimNode = EAimNodes.AimNode_Cover;
-        vAimLocation  = Super(SFXAI_Cover).GetAimLocation(oAimTarget);
-    }
-    
+    GetDefaultAimLocation(oAimPawn, vAimLocation, EAimNodes.AimNode_Head, EAimNodes.AimNode_Chest);
     return vAimLocation;
 }
 
@@ -576,7 +629,7 @@ function CBotDebugDraw(BioHUD HUD)
         cmgr.DrawProfileText(GetFocalPoint());
         cmgr.DrawProfileText("-------------------------");
         cmgr.DrawProfileText("Enemy evaluation:");
-        //CBotDebugDraw_EnemyEval(PC, cmgr);
+        CBotDebugDraw_EnemyEval(PC, cmgr);
         // -----------------------------------------------
         bpAimTarget = BioPawn(m_agentTarget);
         if (bpAimTarget == None) bpAimTarget = BioPawn(PC.Pawn);
