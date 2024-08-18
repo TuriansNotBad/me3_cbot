@@ -179,6 +179,10 @@ function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr
     dmgMod = AIPawn.GetModule(Class'SFXModule_DamagePlayer');
     dmgMod.BleedoutSFXInterpSpeed = 0.0;
     dmgMod.BleedoutVFXInterpSpeed = 0.0;
+
+    // smooth aiming
+    AIPawn.AimOffsetInterpSpeed       = 4.0;
+    AIPawn.RemoteAimOffsetInterpSpeed = 4.0;
 }
 
 defaultproperties

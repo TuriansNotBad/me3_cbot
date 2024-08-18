@@ -2,10 +2,10 @@ Class SFXAI_CBotTurret extends SFXAI_Cover
     placeable
     config(AI);
 
+// @todo: builds
 // @todo: add weapon mods
 // @todo: implement system for applying relevant active match consumables and gear item
 // @todo: aim node does not update if agent has armor piercing and current node is still valid
-// @todo: aim jerking when target point blank
 // @todo: still experiencing major staggers when hit sideways, and maybe from behind, when shouldn't (such as bomber and scion shots)
 // @todo: add staggerfree mode toggle
 // @todo: show bot names and blue outline in matches as real players would be shown like
@@ -483,7 +483,6 @@ function CBotDebugDrawInit(BioPlayerController PC)
 
 function CBotDebugDrawRemove(BioPlayerController PC)
 {
-
     BioHUD(PC.myHUD).ClearDebugDraw(CBotDebugDraw);
 }
 
