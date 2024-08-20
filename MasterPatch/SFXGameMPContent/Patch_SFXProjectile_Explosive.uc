@@ -1,3 +1,7 @@
+class Patch_SFXProjectile_Explosive extends SFXProjectile
+    native
+    config(Weapon);
+
 public function DoImpact(Actor InImpactedActor, Controller InInstigatorController, float BaseDamage, float InDamageRadius, float Momentum, Vector HurtOrigin, bool bFullDamage, out TraceHitInfo HitInfo)
 {
     local BioPawn HitPawn;
@@ -26,4 +30,8 @@ public function DoImpact(Actor InImpactedActor, Controller InInstigatorControlle
             }
         }
     }
+}
+
+defaultproperties
+{
 }

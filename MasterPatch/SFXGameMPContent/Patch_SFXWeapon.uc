@@ -1,3 +1,8 @@
+class Patch_SFXWeapon extends SFXWeapon_NativeBase
+    placeable
+    abstract
+    config(Weapon);
+
 // Workaround for the weapon impact audio playing at full volume
 public simulated function WwiseEvent GetImpactSound(PhysicalMaterial PhysMat)
 {
@@ -26,4 +31,8 @@ public simulated function WwiseEvent GetImpactSound(PhysicalMaterial PhysMat)
         }
     }
     return None;
+}
+
+defaultproperties
+{
 }

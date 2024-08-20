@@ -3,21 +3,66 @@ Class SFXAI_CBotTurret extends SFXAI_Cover
     config(AI);
 
 // @todo: builds
-// @todo: add weapon mods
-// @todo: implement system for applying relevant active match consumables and gear item
 // @todo: aim node does not update if agent has armor piercing and current node is still valid
 // @todo: add staggerfree mode toggle
 // @todo: show bot names and blue outline in matches as real players would be shown like
 // @todo: random or inputted names and colors
 // @todo: UX - currently ghosting player forever when spawning
+// @todo: limit wall hack distance or option to disable entirely
 
-const c_AMCAP4   = -814405748;
-const c_AMCCM4   = 1915545774;
-const c_AMCARRA3 = -370375887;
+// Match consumables
+
+const c_AMC_AmmoArmorPiercing = -814405748;
+const c_AMC_AmmoDisruptor     =  227097715;
+const c_AMC_AmmoIncendiary    =-1109361556;
+const c_AMC_AmmoPhasic        = -366520656;
+const c_AMC_AmmoWarp          =  984397380;
+
+const c_AMC_AmpAssaultRifle = -370375887;
+const c_AMC_AmpPistol       = 1745725129;
+const c_AMC_AmpSMG          =  105473311;
+const c_AMC_AmpShotgun      = 1514620052;
+const c_AMC_AmpSniperRifle  =  370621455;
+
+const c_AMC_ModAdrenaline =   -1144971;
+const c_AMC_ModCyclonic   = 1915545774;
+const c_AMC_ModPowerAmp   =  350109524;
+
+// Gear items, level 5 is max
+
+const c_AMG_AmpAssaultRifle =  975595153;
+const c_AMG_AmpPistol       =  881305038;
+const c_AMG_AmpSMG          = -540458588;
+const c_AMG_AmpShotgun      =-2118260984;
+const c_AMG_AmpSniperRifle  =  829572041;
+
+// Weapon mods, level 5 is max
+
+const c_WM_AssaultRifleMagSize = 'SFXGameContent.SFXWeaponMod_AssaultRifleMagSize';
+const c_WM_AssaultRifleDamage  = 'SFXGameContent.SFXWeaponMod_AssaultRifleDamage';
+
+const c_WM_SniperRifleDmgAndPen = 'SFXGameContentDLC_Shared.SFXWeaponMod_SniperRifleDamageAndPen';
+const c_WM_SniperRiflePen       = 'SFXGameContent.SFXWeaponMod_SniperRifleConstraintDamage';
+const c_WM_SniperRifleDmg       = 'SFXGameContent.SFXWeaponMod_SniperRifleDamage';
+const c_WM_SniperRifleSpareAmmo = 'SFXGameContent.SFXWeaponMod_SniperRifleReloadSpeed';
+
+const c_WM_SMGMag = 'SFXGameContent.SFXWeaponMod_SMGMagSize';
+const c_WM_SMGDmg = 'SFXGameContent.SFXWeaponMod_SMGDamage';
+const c_WM_SmgPen = 'SFXGameContentDLC_Shared.SFXWeaponMod_SMGPenetration';
+
+const c_WM_ShotgunSpareAmmo = 'SFXGameContent.SFXWeaponMod_ShotgunStability';
+const c_WM_ShotgunDmg       = 'SFXGameContent.SFXWeaponMod_ShotgunDamage';
+const c_WM_ShotgunAccuracy  = 'SFXGameContent.SFXWeaponMod_ShotgunAccuracy';
+const c_WM_ShotgunDmgAndPen = 'SFXGameContentDLC_Shared.SFXWeaponMod_ShotgunDamageAndPen';
+
+const c_WM_PistolSuperDmg = 'SFXGameContentDLC_Shared.SFXWeaponMod_PistolSuperDamage';
+const c_WM_PistolMag      = 'SFXGameContent.SFXWeaponMod_PistolMagSize';
+const c_WM_PistolPowerDmg = 'SFXGameContentDLC_CON_MP5.SFXWeaponMod_PistolPowerDamage_MP5';
 
 var SFXCBot_TagPoint m_createdNP;
 var Actor m_agentTarget;
 var EAimNodes m_lastAimNode;
+var array<ActiveMatchConsumable> m_AMC;
 
 enum ECBotVis
 {
@@ -42,42 +87,197 @@ function Initialize()
 {
     local SFXPRIMP PRIMP;
     local BioPlayerController PC;
-    local int idx;
+    local int wpnModLvl;
+    local name wpnModClass;
     
     foreach WorldInfo.AllControllers(Class'BioPlayerController', PC)
     {
         PRIMP = SFXPRIMP(PC.PlayerReplicationInfo);
-        for (idx = 0; idx < 4; ++idx)
-            Print(PRIMP.ActiveMatchConsumables[idx].ClassNameID @ PRIMP.ActiveMatchConsumables[idx].Value);
+        primp.GetWeaponMod(0, 0, wpnModClass, wpnModLvl);
+        Print(wpnModClass@wpnModLvl);
+        primp.GetWeaponMod(0, 1, wpnModClass, wpnModLvl);
+        Print(wpnModClass@wpnModLvl);
+        primp.GetWeaponMod(1, 0, wpnModClass, wpnModLvl);
+        Print(wpnModClass@wpnModLvl);
+        primp.GetWeaponMod(1, 1, wpnModClass, wpnModLvl);
+        Print(wpnModClass@wpnModLvl);
+        primp.GetWeaponMod(2, 0, wpnModClass, wpnModLvl);
+        Print(wpnModClass@wpnModLvl);
+        primp.GetWeaponMod(2, 1, wpnModClass, wpnModLvl);
+        Print(wpnModClass@wpnModLvl);
         break;
     }
     Super(SFXAI_Core).Initialize();
     //HaltWaves(true);
     m_lastAimNode = EAimNodes.AimNode_Cover;
-    AddActiveMatchConsumable(c_AMCAP4,   3);
-    AddActiveMatchConsumable(c_AMCARRA3, 2);
-    AddActiveMatchConsumable(c_AMCCM4,   3);
     PlayerReplicationInfo.bBot = false;
+    SetupMyWeaponMods();
+    SetTimer(0.5, false, 'EnterMatchSetup', self);
 }
 
-function Print(coerce string msg)
+function SetupMyWeaponMods()
 {
-    local BioPlayerController PC;
-    
-    foreach WorldInfo.AllControllers(Class'BioPlayerController', PC)
+    local SFXPRIMP primp;
+    local int idx;
+    local name wpnClass;
+
+    primp = SFXPRIMP(PlayerReplicationInfo);
+    if (primp == None) return;
+
+    for (idx = 0; idx < 2; ++idx)
     {
-        PC.ClientMessage(msg);
-        break;
+        if (primp.GetWeapon(idx, wpnClass))
+        {
+            if (InStr(wpnClass, "AssaultRifle", false, true) > -1)
+            {
+                primp.SetWeaponMod(idx, 0,  c_WM_AssaultRifleDamage, 5);
+                primp.SetWeaponMod(idx, 1, c_WM_AssaultRifleMagSize, 5);
+            }
+            else if (InStr(wpnClass, "Pistol", false, true) > -1)
+            {
+                primp.SetWeaponMod(idx, 0, c_WM_PistolSuperDmg, 5);
+                primp.SetWeaponMod(idx, 1,      c_WM_PistolMag, 5);
+            }
+            else if (InStr(wpnClass, "Shotgun", false, true) > -1)
+            {
+                if (InStr(wpnClass, "SFXWeapon_Shotgun_Quarian", false, true) > -1)
+                {
+                    primp.SetWeaponMod(idx, 0, c_WM_ShotgunDmgAndPen, 5);
+                    primp.SetWeaponMod(idx, 1, c_WM_ShotgunSpareAmmo, 5);
+                }
+                else
+                {
+                    primp.SetWeaponMod(idx, 0,     c_WM_ShotgunDmg, 5);
+                    primp.SetWeaponMod(idx, 1, c_WM_ShotgunAccuracy, 5);
+                }
+            }
+            else if (InStr(wpnClass, "SMG", false, true) > -1)
+            {
+                primp.SetWeaponMod(idx, 0, c_WM_SMGDmg, 5);
+                primp.SetWeaponMod(idx, 1, c_WM_SMGMag, 5);
+            }
+            else if (InStr(wpnClass, "SniperRifle", false, true) > -1)
+            {
+                if (InStr(wpnClass, "Batarian", false, true) > -1 || InStr(wpnClass, "Turian", false, true) > -1)
+                {
+                    primp.SetWeaponMod(idx, 0,       c_WM_SniperRifleDmg, 5);
+                    primp.SetWeaponMod(idx, 1, c_WM_SniperRifleSpareAmmo, 5);
+                }
+                else
+                {
+                    primp.SetWeaponMod(idx, 0, c_WM_SniperRifleDmgAndPen, 5);
+                    primp.SetWeaponMod(idx, 1,       c_WM_SniperRiflePen, 5);
+                }
+            }
+        }
     }
+}
+
+function EnterMatchSetup()
+{
+    local SFXWeapon Wpn;
+    
+    Wpn = SFXWeapon(MyBP.Weapon);
+    if (Wpn == None || !Wpn.bIsInitialized)
+    {
+        SetTimer(0.5, false, 'EnterMatchSetup', self);
+        return;
+    }
+    SetupActiveMatchConsumables();
+    ApplyActiveMatchConsumables();
+}
+
+function ApplyActiveMatchConsumables()
+{
+    local SFXModule_GameEffectManager GEManager;
+    local Class<SFXGameEffect> effectClass;
+    local int idx;
+    local SFXGameEffect GEMatchConsumable;
+    local SFXPRIMP primp;
+    local ActiveMatchConsumable amc;
+    local EDurationType EDurationType;
+    
+    primp = SFXPRIMP(PlayerReplicationInfo);
+    if (MyBP == None || primp == None) return;
+    
+    GEManager = MyBP.GetModule(Class'SFXModule_GameEffectManager');
+    if (GEManager == None) return;
+
+    GEManager.RemoveEffectsByCategory(primp.MatchConsumableGECategory);
+    for (idx = 0; idx < primp.NumConsumablesAllowedPerMatch; idx++)
+    {
+        amc = m_AMC[idx];
+        if (amc.ClassNameID == 0) continue;
+        
+        effectClass = Class'SFXGameEffect'.static.LoadGameEffectClass(Class'SFXEngine'.static.GetStrFromSFXUniqueID(amc.ClassNameID));
+        if (effectClass == None) continue;
+
+        GEMatchConsumable = GEManager.CreateAndApplyEffect(effectClass, primp.MatchConsumableGECategory, 0.0, EDurationType.DurationType_Permanent, amc.Value, self);
+        if (GEMatchConsumable == None)
+            Print("Failed to create match consumable for" @ self @ ":" @ amc.ClassNameID);
+    }
+}
+
+private function SetupActiveMatchConsumables()
+{
+    local SFXWeapon wpn;
+
+    wpn = SFXWeapon(MyBP.Weapon);
+    if (wpn == None) return;
+
+    // weapon amps + gear
+    if (wpn.IsA('SFXWeapon_AssaultRifle_Base'))
+    {
+        AddActiveMatchConsumable(c_AMC_AmpAssaultRifle, 2);
+        AddActiveMatchConsumable(c_AMG_AmpAssaultRifle, 5);
+    }
+    else if (wpn.IsA('SFXWeapon_Pistol_Base'))
+    {
+        AddActiveMatchConsumable(c_AMC_AmpPistol, 2);
+        AddActiveMatchConsumable(c_AMG_AmpPistol, 5);
+    }
+    else if (wpn.IsA('SFXWeapon_Shotgun_Base'))
+    {
+        AddActiveMatchConsumable(c_AMC_AmpShotgun, 2);
+        AddActiveMatchConsumable(c_AMG_AmpShotgun, 5);
+    }
+    else if (wpn.IsA('SFXWeapon_SMG_Base'))
+    {
+        AddActiveMatchConsumable(c_AMC_AmpSMG, 2);
+        AddActiveMatchConsumable(c_AMG_AmpSMG, 5);
+    }
+    else if (wpn.IsA('SFXWeapon_SniperRifle_Base'))
+    {
+        AddActiveMatchConsumable(c_AMC_AmpSniperRifle, 2);
+        AddActiveMatchConsumable(c_AMG_AmpSniperRifle, 5);
+    }
+
+    // pick ammo
+    if (wpn.WeaponProjectiles.Length == 0)
+    {
+        if (wpn.IsA('SFXWeapon_SniperRifle_Widow') || wpn.IsA('SFXWeapon_SniperRifle_Javelin'))
+            AddActiveMatchConsumable(c_AMC_AmmoPhasic, 2);
+        else if (wpn.IsA('SFXWeapon_Shotgun_Quarian') || wpn.IsA('SFXWeapon_SniperRifle_Collector'))
+            AddActiveMatchConsumable(c_AMC_AmmoIncendiary, 3);
+        else if (wpn.IsA('SFXWeapon_SniperRifle_Base'))
+            AddActiveMatchConsumable(c_AMC_AmmoWarp, 3);
+        else
+            AddActiveMatchConsumable(c_AMC_AmmoArmorPiercing, 3);
+    }
+    else
+        AddActiveMatchConsumable(c_AMC_AmmoDisruptor, 3);
+    
+    // armor
+    AddActiveMatchConsumable(c_AMC_ModCyclonic, 3);
 }
 
 function AddActiveMatchConsumable(int consumeClassNameId, int consumeLevel)
 {
-    local SFXPRIMP primp;
+    local ActiveMatchConsumable amc;
 
-    primp = SFXPRIMP(PlayerReplicationInfo);
-    if (primp != None)
-        primp.AddActiveMatchConsumable(consumeClassNameId, consumeLevel);
+    amc.ClassNameID = consumeClassNameId;
+    amc.Value       = consumeLevel;
+    m_amc.AddItem(amc);
 }
 
 function float GetWpnPenetrationDistance(optional Pawn testpawn)
@@ -453,6 +653,17 @@ function bool CanFireWeapon(Weapon Wpn, byte FireModeNum)
 // -------------------------------------------------------------------------
 //                                DEBUG
 // -------------------------------------------------------------------------
+
+function Print(coerce string msg)
+{
+    local BioPlayerController PC;
+    
+    foreach WorldInfo.AllControllers(Class'BioPlayerController', PC)
+    {
+        PC.ClientMessage(msg);
+        break;
+    }
+}
 
 function HaltWaves(bool pause)
 {
