@@ -8,6 +8,9 @@ struct ItemLookup
 
 var array<ItemLookup> _kitLookup;
 var array<ItemLookup> _wpnLookup;
+var bool m_bStaggerFree;
+var float m_fXrayVisionDist;
+var bool m_bEnforceXrayVisionDist;
 
 // Functions -----------------------------------------------------------
 
@@ -97,6 +100,18 @@ private function ToggleStaggerImmunity(BioPlayerController PC)
         for (itr = 110; itr <= 114; ++itr)
             agent.MyBP.CustomActionClasses[itr] = None;
     }
+    m_bStaggerFree = true;
+}
+
+private function SetXRayVisionDepth(BioPlayerController PC, coerce float d)
+{
+    local SFXAI_CBotTurret agent;
+
+    foreach PC.WorldInfo.AllControllers(Class'SFXAI_CBotTurret', agent)
+        agent.m_maxPenVisionDist = d;
+    
+    m_bEnforceXrayVisionDist = true;
+    m_fXrayVisionDist = d;
 }
 
 function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr, optional string kitId, optional string wpn, optional int logicId)
@@ -120,6 +135,11 @@ function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr
     else if (kitId == "stagger")
     {
         ToggleStaggerImmunity(PC);
+        return;
+    }
+    else if (kitId == "xray")
+    {
+        SetXRayVisionDepth(PC, wpn);
         return;
     }
 
@@ -222,6 +242,9 @@ function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr
     // smooth aiming
     AIPawn.AimOffsetInterpSpeed       = 4.0;
     AIPawn.RemoteAimOffsetInterpSpeed = 4.0;
+
+    if (m_bStaggerFree) ToggleStaggerImmunity(PC);
+    if (m_bEnforceXrayVisionDist) SetXRayVisionDepth(PC, m_fXrayVisionDist);
 }
 
 defaultproperties

@@ -5,7 +5,6 @@ Class SFXAI_CBotTurret extends SFXAI_Cover
 // @todo: builds
 // @todo: show bot names and blue outline in matches as real players would be shown like
 // @todo: UX - currently ghosting player forever when spawning
-// @todo: limit wall hack distance or option to disable entirely
 
 // Match consumables
 
@@ -60,6 +59,7 @@ var SFXCBot_TagPoint m_createdNP;
 var Actor m_agentTarget;
 var EAimNodes m_lastAimNode;
 var array<ActiveMatchConsumable> m_AMC;
+var float m_maxPenVisionDist;
 
 enum ECBotVis
 {
@@ -160,6 +160,7 @@ function EnterMatchSetup()
     }
     SetupActiveMatchConsumables();
     ApplyActiveMatchConsumables();
+    if (m_maxPenVisionDist < 0.0) m_maxPenVisionDist = GetWpnPenetrationDistance();
 }
 
 function ApplyActiveMatchConsumables()
@@ -314,7 +315,7 @@ private function bool IsAimLocationVisible(BioPawn testpawn, const out Vector vA
             impactList
         );
         foreach impactList(impactItr)
-            if (testpawn == impactItr.HitActor)
+            if (testpawn == impactItr.HitActor && impactItr.PenetrationDepth <= m_maxPenVisionDist)
                 return true;
     }
     else
@@ -814,5 +815,6 @@ defaultproperties
     bUseTicketing=false
     m_bAvoidDangerLinks=false
     m_fReloadThreshold=1.0
+    m_maxPenVisionDist=-1.0
     MoveFireDelayTime=(X=0.001,Y=0.001)
 }

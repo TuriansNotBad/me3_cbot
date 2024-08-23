@@ -12,7 +12,7 @@ function Pushed()
         Outer.m_createdNP = Outer.Spawn(Class'SFXCBot_TagPoint', , , Outer.MyBP.location, , , true);
 }
 
-auto state Combat extends InCombat 
+auto state Combat 
 {
     
 Begin:
