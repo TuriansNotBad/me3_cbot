@@ -78,6 +78,27 @@ private function RandomizeCustomization(out SFXPRIMP primp)
     primp.CharacterData.PhongID = Rand(Class'SFXPlayerCustomizationMP'.default.PhongAppearances.Length);
 }
 
+private function ToggleStaggerImmunity(BioPlayerController PC)
+{
+    local int itr;
+    local SFXAI_CBotTurret agent;
+
+    // 81-85 - normal
+    // 87-91 - stagger
+    // 92-95 - knockback
+    // 96-99 - melee
+    // 110-114 - large
+    foreach PC.WorldInfo.AllControllers(Class'SFXAI_CBotTurret', agent)
+    {
+        for (itr = 81; itr <= 85; ++itr)
+            agent.MyBP.CustomActionClasses[itr] = None;
+        for (itr = 87; itr <= 99; ++itr)
+            agent.MyBP.CustomActionClasses[itr] = None;
+        for (itr = 110; itr <= 114; ++itr)
+            agent.MyBP.CustomActionClasses[itr] = None;
+    }
+}
+
 function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr, optional string kitId, optional string wpn, optional int logicId)
 {
     local SFXPawn PlayerPawn;
@@ -94,6 +115,11 @@ function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr
     if (kitId == "dbg")
     {
         ToggleDebugForAgent(PC, wpn);
+        return;
+    }
+    else if (kitId == "stagger")
+    {
+        ToggleStaggerImmunity(PC);
         return;
     }
 

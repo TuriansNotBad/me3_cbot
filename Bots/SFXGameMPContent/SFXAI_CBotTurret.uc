@@ -3,7 +3,6 @@ Class SFXAI_CBotTurret extends SFXAI_Cover
     config(AI);
 
 // @todo: builds
-// @todo: add staggerfree mode toggle
 // @todo: show bot names and blue outline in matches as real players would be shown like
 // @todo: UX - currently ghosting player forever when spawning
 // @todo: limit wall hack distance or option to disable entirely
