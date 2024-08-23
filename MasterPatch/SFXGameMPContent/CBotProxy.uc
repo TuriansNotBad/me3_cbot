@@ -67,6 +67,17 @@ private function ToggleDebugForAgent(BioPlayerController PC, coerce int idx)
     }
 }
 
+private function RandomizeCustomization(out SFXPRIMP primp)
+{
+    primp.CharacterData.Tint1ID = Rand(Class'SFXPlayerCustomizationMP'.default.Tint1Appearances.Length);
+    primp.CharacterData.Tint2ID = Rand(Class'SFXPlayerCustomizationMP'.default.Tint2Appearances.Length);
+    primp.CharacterData.PatternID = Rand(Class'SFXPlayerCustomizationMP'.default.PatternAppearances.Length);
+    primp.CharacterData.PatternColorID = Rand(Class'SFXPlayerCustomizationMP'.default.PatternColorAppearances.Length);
+    primp.CharacterData.SkinToneID = Rand(Class'SFXPlayerCustomizationMP'.default.SkinToneAppearances.Length);
+    primp.CharacterData.EmissiveID = Rand(Class'SFXPlayerCustomizationMP'.default.EmissiveAppearances.Length);
+    primp.CharacterData.PhongID = Rand(Class'SFXPlayerCustomizationMP'.default.PhongAppearances.Length);
+}
+
 function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr, optional string kitId, optional string wpn, optional int logicId)
 {
     local SFXPawn PlayerPawn;
@@ -142,6 +153,8 @@ function SummonAgent(BioPlayerController PC, SFXCheatManagerNonNativeMP cheatMgr
     
     // Setup replication info
     agentPrimp = SFXPRIMP(AI.PlayerReplicationInfo);
+    agentPrimp.DisplayName = agentKit;
+    RandomizeCustomization(agentPrimp);
     agentPrimp.SetCharacterKit(Name(agentKit));
     if (agentWpn != "")
     {

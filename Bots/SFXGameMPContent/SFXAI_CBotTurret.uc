@@ -3,10 +3,8 @@ Class SFXAI_CBotTurret extends SFXAI_Cover
     config(AI);
 
 // @todo: builds
-// @todo: aim node does not update if agent has armor piercing and current node is still valid
 // @todo: add staggerfree mode toggle
 // @todo: show bot names and blue outline in matches as real players would be shown like
-// @todo: random or inputted names and colors
 // @todo: UX - currently ghosting player forever when spawning
 // @todo: limit wall hack distance or option to disable entirely
 
@@ -85,28 +83,6 @@ enum EAimNodes
 
 function Initialize()
 {
-    local SFXPRIMP PRIMP;
-    local BioPlayerController PC;
-    local int wpnModLvl;
-    local name wpnModClass;
-    
-    foreach WorldInfo.AllControllers(Class'BioPlayerController', PC)
-    {
-        PRIMP = SFXPRIMP(PC.PlayerReplicationInfo);
-        primp.GetWeaponMod(0, 0, wpnModClass, wpnModLvl);
-        Print(wpnModClass@wpnModLvl);
-        primp.GetWeaponMod(0, 1, wpnModClass, wpnModLvl);
-        Print(wpnModClass@wpnModLvl);
-        primp.GetWeaponMod(1, 0, wpnModClass, wpnModLvl);
-        Print(wpnModClass@wpnModLvl);
-        primp.GetWeaponMod(1, 1, wpnModClass, wpnModLvl);
-        Print(wpnModClass@wpnModLvl);
-        primp.GetWeaponMod(2, 0, wpnModClass, wpnModLvl);
-        Print(wpnModClass@wpnModLvl);
-        primp.GetWeaponMod(2, 1, wpnModClass, wpnModLvl);
-        Print(wpnModClass@wpnModLvl);
-        break;
-    }
     Super(SFXAI_Core).Initialize();
     //HaltWaves(true);
     m_lastAimNode = EAimNodes.AimNode_Cover;
